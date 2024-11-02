@@ -15,10 +15,12 @@ import utils.dataset_utils as dataset_utils
 
 def get_args():
     parser = argparse.ArgumentParser(description='Parse AIG')
-    parser.add_argument('--aig_dir', type=str, default='./data/sub_aig', help='AIG directory')
+    parser.add_argument('--aig_dir', type=str, default='D:\data\lcm\sub_aig', help='AIG directory')
     parser.add_argument('--start_idx', type=int, default=0, help='Start index')
     parser.add_argument('--end_idx', type=int, default=100000, help='End index')
     parser.add_argument('--npz_path', type=str, default='', help='NPZ path')
+    parser.add_argument('--list_path', type=str, default='./list/aig_train_list.txt', help='List path')
+    parser.add_argument('--save_name', type=str, default='aig', help='Save name')
     
     # Modes 
     parser.add_argument('--outlist', action='store_true', help='Output list of AIGs')
@@ -26,7 +28,7 @@ def get_args():
     
     # Output path 
     if args.npz_path == '':
-        args.npz_path = './npz/aig_{:}_{:}.npz'.format(args.start_idx, args.end_idx)
+        args.npz_path = './npz/{}_{:}_{:}.npz'.format(args.save_name, args.start_idx, args.end_idx)
     
     return args
 
@@ -35,14 +37,14 @@ if __name__ == '__main__':
     # Check if AIG directory exists
     if args.outlist:
         aig_list = glob.glob(os.path.join(args.aig_dir, '*/*.aig'))
-        f = open('./tmp/aig_list.txt', 'w')
+        f = open(args.list_path, 'w')
         for aig_path in aig_list:
             f.write('{}\n'.format(aig_path))
         f.close()
         print('List saved to aig_list.txt')
         exit()
     else:
-        f = open('./tmp/aig_list.txt', 'r')
+        f = open(args.list_path, 'r')
         aig_list = f.readlines()
         f.close()
         aig_list = [aig.replace('\n', '') for aig in aig_list]
@@ -59,12 +61,15 @@ if __name__ == '__main__':
             logger.write('File not found: {}'.format(aig_path))
             continue
         start_time = time.time()
-        aig_name = os.path.basename(aig_path)[:-4]
+        arr = aig_path.replace('.aig', '').split('\\')
+        design_name = arr[-2]
+        module_name = arr[-1]
+        aig_name = design_name + '_' + module_name
         # Parse 
         x_data, edge_index = aiger_utils.aig_to_xdata(aig_path)
         logger.write('Parse: {} ({:} / {:}), Size: {:}, Time: {:.2f}s, ETA: {:.2f}s, Succ: {:}'.format(
             aig_name, aig_k, no_aigs, len(x_data), 
-            tot_time, tot_time / ((aig_k + 1) / no_aigs) - tot_time, 
+            tot_time, tot_time / ((aig_k + 1 - args.start_idx) / no_aigs) - tot_time, 
             len(graphs)
         ))
         fanin_list, fanoutlist = circuit_utils.get_fanin_fanout(x_data, edge_index)
@@ -77,7 +82,7 @@ if __name__ == '__main__':
             for fanin_idx in fanin_list[idx]:
                 edge_index.append([fanin_idx, idx])
         x_data, edge_index = circuit_utils.remove_unconnected(x_data, edge_index)
-        if len(edge_index) == 0 or len(x_data) == 0:
+        if len(edge_index) < 10 or len(x_data) < 10:
             logger.write('Empty: {}'.format(aig_name))
             continue
         x_one_hot = dg.construct_node_feature(x_data, 3)
@@ -99,7 +104,8 @@ if __name__ == '__main__':
         #############################################
         # Node-level features 
         #############################################
-        prob, tt_pair_index, tt_sim, con_index, con_label = circuit_utils.prepare_dg2_labels_cpp(graph, 15000)
+        head = '{}_{}'.format(design_name, module_name)
+        prob, tt_pair_index, tt_sim, con_index, con_label = circuit_utils.prepare_dg2_labels_cpp(graph, 15000, head=head, max_pairs=len(x_data) * 10)
         
         assert max(prob).item() <= 1.0 and min(prob).item() >= 0.0
         assert len(prob) == len(x_data)
@@ -110,13 +116,17 @@ if __name__ == '__main__':
         graph.prob = prob
         graph.tt_pair_index = tt_pair_index
         graph.tt_sim = tt_sim
-        graph.connect_pair_index = con_index.T
-        graph.connect_label = con_label
+        # graph.connect_pair_index = con_index.T
+        # graph.connect_label = con_label
         
-        
+        graphs[aig_name] = graph 
         end_time = time.time()
         tot_time += end_time - start_time
+
+        if len(graphs) % 10000 == 0:
+            np.savez(args.npz_path, circuits=graphs)
+            logger.write('Save: {}'.format(args.npz_path))
     
-    np.savez_compressed(args.npz_path, circuits=graphs)
+    np.savez(args.npz_path, circuits=graphs)
     logger.write(args.npz_path)
-    logger.write(len(graphs))
+    print(len(graphs))

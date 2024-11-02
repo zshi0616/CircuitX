@@ -5,6 +5,13 @@ import time
 import numpy as np
 
 def run_command(command, timeout=-1):
+    # # Run command (using os.popen)
+    # start_time = time.time()
+    # process = os.popen(command)
+    # stdout = process.read()
+    # process.close()
+    # return stdout, time.time() - start_time
+
     try: 
         command_list = shlex.split(command)
         process = subprocess.Popen(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

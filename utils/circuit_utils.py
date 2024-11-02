@@ -1383,16 +1383,18 @@ def get_fanin_fanout_cone(g, max_no_nodes=512):
     return fanin_fanout_cones
 
 def prepare_dg2_labels_cpp(g, no_patterns=15000, 
-                           simulator='./utils/simulator/simulator', 
+                           simulator='./utils/simulator/simulator.exe', 
                            graph_filepath='', 
-                           res_filepath=''):
+                           res_filepath='', 
+                           head='', 
+                           max_pairs=1e9):
     if graph_filepath == '':
-        graph_filepath = './tmp/tmp_graph_{}_{}_{}.txt'.format(
-            time.strftime("%Y%m%d-%H%M%S"), threading.currentThread().ident, random.randint(0, 1000)
+        graph_filepath = './/tmp//tmp_graph_{}_{}_{}_{}.txt'.format(
+            time.strftime("%Y%m%d-%H%M%S"), threading.currentThread().ident, random.randint(0, 1000), head
         )
     if res_filepath == '':
-        res_filepath = './tmp/tmp_res_{}_{}_{}.txt'.format(
-            time.strftime("%Y%m%d-%H%M%S"), threading.currentThread().ident, random.randint(0, 1000)
+        res_filepath = './/tmp//tmp_res_{}_{}_{}_{}.txt'.format(
+            time.strftime("%Y%m%d-%H%M%S"), threading.currentThread().ident, random.randint(0, 1000), head
         )
     # Parse graph 
     PI_index = g['forward_index'][(g['forward_level'] == 0) & (g['backward_level'] != 0)]
@@ -1454,18 +1456,25 @@ def prepare_dg2_labels_cpp(g, no_patterns=15000,
     tt_index = torch.tensor(tt_index)
     tt_sim = torch.tensor(tt_sim)
     prob = torch.tensor(prob)
+    if len(tt_sim) > max_pairs:
+        max_pairs = int(max_pairs)
+        sample_flag = random.sample(range(len(tt_sim)), max_pairs)
+        tt_index = tt_index[sample_flag]
+        tt_sim = tt_sim[sample_flag]
     
-    # Connection pairs 
-    no_connection_pairs = int(lines[no_nodes+1+no_tt_pairs].replace('\n', '').split(' ')[1])
-    con_index = []
-    con_label = []
-    for line in lines[no_nodes+2+no_tt_pairs: no_nodes+2+no_tt_pairs+no_connection_pairs]:
-        arr = line.replace('\n', '').split(' ')
-        assert len(arr) == 3
-        con_index.append([int(arr[0]), int(arr[1])])
-        con_label.append(int(arr[2]))
-    con_index = torch.tensor(con_index)
-    con_label = torch.tensor(con_label)
+    # HERE: disable sampling node pair for connection prediction 
+    # # Connection pairs 
+    # no_connection_pairs = int(lines[no_nodes+1+no_tt_pairs].replace('\n', '').split(' ')[1])
+    # con_index = []
+    # con_label = []
+    # for line in lines[no_nodes+2+no_tt_pairs: no_nodes+2+no_tt_pairs+no_connection_pairs]:
+    #     arr = line.replace('\n', '').split(' ')
+    #     assert len(arr) == 3
+    #     con_index.append([int(arr[0]), int(arr[1])])
+    #     con_label.append(int(arr[2]))
+    # con_index = torch.tensor(con_index)
+    # con_label = torch.tensor(con_label)
+    con_index, con_label = [], []
     
     # Remove 
     os.remove(graph_filepath)
