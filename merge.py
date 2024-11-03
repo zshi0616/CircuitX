@@ -7,10 +7,10 @@ npz_list = [
     # './npz/train_0_30000.npz',
     # './npz/train_30000_60000.npz',
     # './npz/train_60000_100000.npz',
-    './npz/train_0_100000.npz',
+    './npz/train_0_20000.npz',
+    './npz/train_20000_40000.npz',
+    './npz/train_40000_100000.npz',
 ]
-
-save_dir = './npz/train.npz'
 
 output_npz_path = './npz/train.npz'
 
