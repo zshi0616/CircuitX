@@ -23,7 +23,7 @@ if __name__ == '__main__':
     model = deepgate.Model()
     
     trainer = deepgate.Trainer(
-        model, training_id='train_1104_dg2', 
+        args, model, training_id='train_1104_dg2', 
         distributed=args.distributed, device='cuda:1', batch_size=args.batch_size
     )
     trainer.set_training_args(prob_rc_func_weight=[3.0, 1.0, 0.0], lr=1e-4, lr_step=50)

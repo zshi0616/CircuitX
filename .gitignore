@@ -9,3 +9,9 @@ log
 npz
 tmp
 
+exp/deepgate2/build
+exp/deepgate2/dist
+exp/deepgate2/*.egg-info
+exp/deepgate2/exp
+exp/deepgate2/tmp
+exp/deepgate2/data
